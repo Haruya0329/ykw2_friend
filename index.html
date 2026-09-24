@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>妖怪友達確率検索サイト</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif, 'Hiragino Kaku Gothic ProN', 'Meiryo';
+        }
+        /* サジェストリストのスクロールバーを少し見やすく調整 */
+        #suggestList::-webkit-scrollbar {
+            width: 8px;
+        }
+        #suggestList::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl shadow-lg p-6 sm:p-10 w-full max-w-lg">
+        <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">妖怪数値検索</h1>
+        
+        <div class="space-y-4">
+            <div>
+                <label for="yokaiInput" class="block text-sm font-medium text-gray-700 mb-1">妖怪の名前 (ひらがな可)</label>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    
+                    <!-- サジェストリストを相対位置で配置するためのラッパー -->
+                    <div class="relative flex-1">
+                        <input 
+                            type="text" 
+                            id="yokaiInput" 
+                            autocomplete="off"
+                            placeholder="名前またはひらがなを入力..." 
+                            class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                        >
+                        <!-- カスタムサジェストリスト -->
+                        <ul 
+                            id="suggestList" 
+                            class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-xl mt-1 max-h-60 overflow-y-auto hidden"
+                        >
+                            <!-- JavaScriptで動的に追加されます -->
+                        </ul>
+                    </div>
+                    
+                    <button 
+                        id="searchBtn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow transition-colors flex-shrink-0"
+                    >
+                        検索
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-gray-200">
+                <p class="text-sm text-gray-500 text-center mb-2">検索結果</p>
+                <div 
+                    id="resultBox" 
+                    class="bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center min-h-[120px] p-6 transition-all duration-300"
+                >
+                    <span id="resultText" class="text-3xl font-bold text-gray-400">
+                        -
+                    </span>
+                </div>
+            </div>
+
+            <div class="pt-4">
+                <a 
+                    href="https://hamatipokeyou2-creator.github.io/ykw2_friend_calculation/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    class="block w-full bg-gradient-to-r from-orange-400 to-red-500 hover:from-orange-500 hover:to-red-600 text-white font-bold text-center py-4 rounded-xl shadow-lg transition-all transform hover:scale-[1.02] hover:shadow-xl text-lg flex items-center justify-center gap-2"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    ともだち確率計算サイトへ
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // 妖怪データの文字列 (名前,よみがな,数値)
+        const csvData = `ぶようじん坊,ぶようじんぼう,654331
+がらあきん坊,がらあきんぼう,765444
+さきがけの助,さきがけのすけ,765555
+ダラケ刀,だらけとう,665433
+ザンバラ刀,ざんばらとう,765444
+ダララだんびら,だららだんびら,765555
+かたづ家来,かたづけらい,665442
+アライ魔将,あらいましょう,776665
+獅子まる,ししまる,776553
+万尾獅子,まんおじし,887765
+おこ武者,おこむしゃ,776542
+くしゃ武者,くしゃむしゃ,887777
+なまはげ,なまはげ,888888
+ちからモチ,ちからもち,654331
+やきモチ,やきもち,654333
+あかなめ,あかなめ,655442
+おにぎり侍,おにぎりざむらい,887664
+焼きおに斬り,やきおにぎり,888776
+カブトさん,かぶとさん,876655
+ゲンマ将軍,げんましょうぐん,877777
+黄泉ゲンスイ,よみげんすい,887777
+泥田坊,どろたぼう,666554
+ブリー隊長,ぶりーたいちょう,654321
+メラメライオン,めらめらいおん,765433
+グラグライオン,ぐらぐらいおん,765444
+とどろき獅子,とどろきじし,876555
+しょうブシ,しょうぶし,765544
+まさむね,まさむね,876666
+むらまさ,むらまさ,876555
+くさなぎ,くさなぎ,887777
+ベンケイ,べんけい,777765
+からくりベンケイ,からくりべんけい,777776
+やまと,やまと,765433
+カブキ猿,かぶきざる,876555
+クワノ武士,くわのぶし,765444
+クワガ大将,くわがたいしょう,876666
+オオクワノ神,おおくわのかみ,887777
+鬼食い,おにぐい,888777
+いのちとり,いのちとり,888877
+さかさっ傘,さかさっかさ,666554
+化け草履,ばけぞうり,766642
+ズルズルづる,ずるずるづる,654331
+かぜカモ,かぜかも,654433
+つづかな僧,つづかなそう,544331
+やめたい師,やめたいし,654332
+もうせん和尚,もうせんおしょう,765555
+わすれん帽,わすれんぼう,654331
+メゾン・ドワスレ,めぞん・どわすれ,766655
+ばか頭巾,ばかずきん,655444
+のっぺら坊,のっぺらぼう,766552
+わらえ姉,わらえあね,654432
+青くちびる,あおくちびる,765443
+バクロ婆,ばくろばばあ,654443
+ババァーン,ばばぁーん,765444
+ドクロ婆,どくろばばあ,665544
+モテモ天,もてもてん,654332
+モテマクール,もてまくーる,776655
+モテヌス,もてぬす,776666
+一旦ゴメン,いったんごめん,665554
+あやまり倒し,あやまりだおし,887776
+こえんら,こえんら,777654
+えんらえんら,えんらえんら,888776
+でんぱく小僧,でんぱくこぞう,654332
+でんじん,でんじん,776555
+はつでんしん,はつでんしん,876666
+おでんじん,おでんじん,887766
+U.S.O.,ゆーえすおー,666554
+アペリカン,あぺりかん,765554
+うんがい鏡,うんがいきょう,765444
+うんがい三面鏡,うんがいさんめんきょう,887776
+ヤミ鏡,やみきょう,876655
+まぼ老師,まぼろうし,654332
+かげ老師,かげろうし,654433
+ほう老師,ほうろうし,765444
+さとりちゃん,さとりちゃん,765443
+よつめ,よつめ,765444
+セバスチャン,せばすちゃん,776643
+天狗,てんぐ,877666
+ほむら天狗,ほむらてんぐ,877777
+キュウビ,きゅうび,888886
+犬神,いぬがみ,877777
+ぬえ,ぬえ,888877
+風魔猿,ふうまざる,888887
+ドキ土器,どきどき,876543
+だるだるま,だるだるま,654331
+だるまっちょ,だるまっちょ,765544
+ゴリだるま,ごりだるま,765555
+うらや飯,うらやめし,777663
+プライ丼,ぷらいどん,887775
+迷い車,まよいぐるま,777663
+だっせんしゃ,だっせんしゃ,887775
+ムリカベ,むりかべ,765443
+むりだ城,むりだじょう,877766
+シロカベ,しろかべ,877777
+グレるりん,ぐれるりん,666532
+ゴクドー,ごくどー,765554
+アニ鬼,あにき,876555
+ヨロイさん,よろいさん,876665
+モノマネキン,ものまねきん,776655
+トオセンボン,とおせんぼん,765443
+くろがねセンボン,くろがねせんぼん,765544
+モレゾウ,もれぞう,654432
+プルファント,ぷるふぁんと,655443
+ガマンモス,がまんもす,877776
+雷蔵,らいぞう,776664
+ヒライ神,ひらいしん,877776
+あせっか鬼,あせっかき,776655
+ふじのやま,ふじのやま,765443
+さくらのじま,さくらのじま,765444
+ドウカク,どうかく,766554
+ギンカク,ぎんかく,776655
+キンカク,きんかく,877766
+プラチナカク,ぷらちなかく,877777
+武者かぶと,むしゃかぶと,765544
+かぶと無双,かぶとむそう,877766
+オオツノノ神,おおつののかみ,877777
+ロボニャン,ろぼにゃん,877776
+ゴルニャン,ごるにゃん,888887
+だいだらぼっち,だいだらぼっち,877766
+うみぼうず,うみぼうず,877776
+大ガマ,おおがま,888877
+大やもり,おおやもり,888887
+びきゃく,びきゃく,776554
+しゃれこ婦人,しゃれこふじん,654442
+カラカラさん,からからさん,876554
+ほね美人,ほねびじん,766655
+セミまる,せみまる,655432
+カゲまる,かげまる,765544
+ヒグラシまる,ひぐらしまる,766655
+さむガリ,さむがり,665543
+ガリ王子,がりおうじ,877666
+あつガルル,あつがるる,877777
+つらがわり,つらがわり,666543
+一つ目小僧,ひとつめこぞう,766552
+ジバニャン,じばにゃん,766654
+トゲニャン,とげにゃん,876665
+ワルニャン,わるにゃん,877666
+ブチニャン,ぶちにゃん,877766
+ノガッパ,のがっぱ,766554
+たびガッパ,たびがっぱ,877665
+なみガッパ,なみがっぱ,877766
+コマさん,こまさん,766654
+ししコマ,ししこま,877666
+コマじろう,こまじろう,766543
+とらじろう,とらじろう,876665
+バク,ばく,665544
+おバク様,おばくさま,877776
+ハク,はく,765555
+雨女,あめおんな,888765
+ばくそく,ばくそく,887776
+キュン太郎,きゅんたろう,655442
+ズキュキュン太,ずきゅきゅんた,876655
+裏キュン太,うらきゅんた,877666
+ケマモン,けまもん,776666
+ゆきおんな,ゆきおんな,765555
+ふぶき姫,ふぶきひめ,877666
+百鬼姫,ひゃっきひめ,877777
+河童,かっぱ,887766
+水虎,すいこ,888887
+マスターニャーダ,ますたーにゃーだ,888887
+うらやましろう,うらやましろう,665431
+つまみぐいのすけ,つまみぐいのすけ,766542
+ワカメくん,わかめくん,665541
+ワカメ☆スター,わかめすたー,776655
+コンブさん,こんぶさん,655431
+メカブちゃん,めかぶちゃん,766551
+ひも爺,ひもじい,654431
+くいい爺,くいいじい,766554
+こめ爺,こめじい,766655
+キズナメコ,きずなめこ,876654
+キズナース,きずなーす,887766
+砂夫,すなお,776551
+大山砂夫,おおやますなお,887765
+から傘お化け,からかさおばけ,776553
+から傘魔人,からかさまじん,887776
+びんボーイ,びんぼーい,655431
+お金ナイダー,おかねないだー,887765
+らくてん童,らくてんどう,665542
+ざしきわらし,ざしきわらし,777653
+ざしきわら神,ざしきわらしん,777666
+ぜっこう蝶,ぜっこうちょう,876653
+ゼッコウ蝶,ぜっこうちょう,876663
+サイコウ蝶,さいこうちょう,877777
+アゲアゲハ,あげあげは,888887
+くだん,くだん,887654
+大くだん,おおくだん,888877
+どんちゃん,どんちゃん,766655
+晴れ男,はれおとこ,776655
+ホノボーノ,ほのぼーの,765543
+ヒョウヘンヌ,ひょうへんぬ,876655
+ヒョウヘンナ,ひょうへんな,877666
+サンタク老師,さんたくろうし,876555
+ふくろじじい,ふくろじじい,765444
+さいの目入道,さいのめにゅうどう,876655
+ゾロ目大明神,ぞろめだいみょうじん,877666
+雷オトン,かみなりおとん,876665
+絶オジイ,ぜつおじい,877666
+聖オカン,せいおかん,877666
+心オバア,こころおばあ,877777
+麒麟,きりん,888887
+イッカク,いっかく,888887
+みちび鬼,みちびき,655432
+えこひい鬼,えこひいき,665543
+かたのり小僧,かたのりこぞう,665531
+かたのり親方,かたのりおやかた,766544
+ぎっくり男,ぎっくりおとこ,766655
+TETSUYA,てつや,877763
+KANTETSU,かんてつ,888776
+草くいおとこ,くさくいおとこ,877763
+肉くいおとこ,にくくいおとこ,888776
+ネガティブーン,ねがてぃぶーん,655431
+ジャネガブーン,じゃねがぶーん,765554
+かゆかゆ,かゆかゆ,876555
+ジミー,じみー,765542
+カゲロー,かげろー,766544
+カイム,かいむ,876655
+ぎしんあん鬼,ぎしんあんき,665543
+ガ鬼,がき,654431
+あまのじゃく,あまのじゃく,766554
+ヒキコウモリ,ひきこうもり,655442
+トジコウモリ,とじこうもり,876655
+ヤドコウモリ,やどこうもり,877666
+かりパックン,かりぱっくん,777643
+泥ボックン,どろぼっくん,877775
+まてんし,まてんし,766553
+ひとまか仙人,ひとまかせんにん,776654
+りもこんかくし,りもこんかくし,877663
+ネクラマテング,ねくらまてんぐ,655443
+ヨミテング,よみてんぐ,766554
+リー夫人,りーふじん,876655
+ミツマタノヅチ,みつまたのづち,887776
+魔ガサス,まがさす,876555
+ウ魔,うま,876666
+デビビル,でびびる,655543
+デビビラン,でびびらん,876555
+虫歯伯爵,むしばはくしゃく,877766
+百々目鬼,とどめき,887777
+きらめ鬼,きらめき,888887
+ドケチング,どけちんぐ,877666
+ヤミまろ,やみまろ,877776
+どんどろ,どんどろ,888777
+イガイガグリ,いがいがぐり,654331
+チクチクウニ,ちくちくうに,654432
+じめりんぼう,じめりんぼう,654431
+雨ふらし,あめふらし,765544
+こおりんぼう,こおりんぼう,665442
+化けあられ,ばけあられ,776655
+たらりん,たらりん,766554
+ヨコドリ,よこどり,665431
+ぶんぶん鳥,ぶんぶんどり,876655
+はらおドリ,はらおどり,765442
+おともらし,おともらし,766541
+爆音ならし,ばくおんならし,766655
+トホホギス,とほほぎす,654431
+ブカッコウ,ぶかっこう,765443
+死神鳥,しにがみどり,766555
+じんめん犬,じんめんけん,665541
+かおベロス,かおべろす,765544
+三途の犬,さんずのいぬ,876655
+けうけげん,けうけげん,887763
+ふさふさん,ふさふさん,877666
+認MEN,みとめん,876531
+ドンヨリーヌ,どんよりーぬ,776643
+口だけおんな,くちだけおんな,765532
+おつぼね様,おつぼねさま,776543
+じがじぃさん,じがじぃさん,766554
+のらりくらり,のらりくらり,776653
+おならず者,おならずもの,665431
+へこ鬼神,へこきじん,776655
+花子さん,はなこさん,876654
+呪野花子,のろいのはなこ,888776
+のぼせトンマン,のぼせとんまん,887776
+おすべり様,おすべりさま,776655
+おしっしょう,おしっしょう,777666
+しわくちゃん,しわくちゃん,876655
+老いらん,おいらん,877666
+ふじみ御前,ふじみごぜん,877777
+フゥミン,ふぅみん,877765
+おねむの精,おねむのせい,877776
+土蜘蛛,つちぐも,888887
+女郎蜘蛛,じょろうぐも,888887
+ねちがえる,ねちがえる,655442
+ツチノコ,つちのこ,766665
+フクリュウ,ふくりゅう,777666
+ツチノコパンダ,つちのこぱんだ,776654
+からみぞん,からみぞん,776643
+こんがらギャル,こんがらぎゃる,877766
+笑ウツボ,わらうつぼ,665432
+歌ウナギ,うたうなぎ,766543
+大蛇のツボ,おろちのつぼ,776544
+キライギョ,きらいぎょ,654432
+ゾウオ,ぞうお,765544
+ギャクジョウオ,ぎゃくじょうお,766655
+おもいだスッポン,おもいだすっぽん,776641
+おもいだ神,おもいだしん,877666
+ムカムカデ,むかむかで,887653
+激ドラゴン,げきどらごん,887766
+りゅーくん,りゅーくん,765544
+龍神,りゅうじん,877766
+青龍,せいりゅう,877777
+にんぎょ,にんぎょ,887764
+八百比丘尼,やおびくに,888877
+イザナミ,いざなみ,888887
+ろくろ首,ろくろくび,665554
+ボー坊,ぼーぼう,776655
+しどろもどろ,しどろもどろ,776654
+ミチクサメ,みちくさめ,655432
+トーシロザメ,とーしろざめ,765543
+ムダヅカイ,むだづかい,655431
+はらわシェル,はらわしぇる,665444
+ナガバナ,ながばな,765443
+ナガバナナ,ながばなな,876655
+ホリュウ,ほりゅう,776665
+つられたろう丸,つられたろうまる,887776
+しきるん蛇,しきるんだ,765443
+すねスネーク,すねすねーく,765554
+まむし行司,まむしぎょうじ,877665
+オロチ,おろち,888886
+影オロチ,かげおろち,877777
+サファイニャン,さふぁいにゃん,876665
+エメラルニャン,えめらるにゃん,876665
+ルビーニャン,るびーにゃん,876665
+トパニャン,とぱにゃん,876665
+ダイヤニャン,だいやにゃん,876665
+メロンニャン,めろんにゃん,776665
+ミカンニャン,みかんにゃん,776665
+キウイニャン,きういにゃん,776665
+ブドウニャン,ぶどうにゃん,776665
+イチゴニャン,いちごにゃん,776665
+スイカニャン,すいかにゃん,776665
+ロボガッパ,ろぼがっぱ,887765
+ロボコマ,ろぼこま,887765
+ロボG,ろぼじー,887765
+ロボメン犬,ろぼめんけん,887765
+ロボノコ,ろぼのこ,887765
+ロボりゅーくん,ろぼりゅーくん,887765
+ワンダーニャン,わんだーにゃん,876665
+ロボニャンF型,ろぼにゃんえふがた,876665
+セーラーニャン,せーらーにゃん,876665
+マスクドニャーン,ますくどにゃーん,876665
+フユニャン,ふゆにゃん,888876
+ダークニャン,だーくにゃん,888877
+ジバコマ,じばこま,876665
+ジェットニャン,じぇっとにゃん,876665
+厄怪,やっかい,888877
+不怪,ふかい,888877
+豪怪,ごうかい,888877
+難怪,なんかい,888877
+破怪,はかい,888877
+ハナホ人,はなほじん,776543
+妖怪ガッツK,ようかいがっつけー,887665
+妖怪ガッツF,ようかいがっつえふ,887665
+ジバニャンS,じばにゃんえす,888887
+コマさんS,こまさんえす,888887
+コマじろうS,こまじろうえす,888887
+ヤミキュウビ,やみきゅうび,888887
+ヒカリオロチ,ひかりおろち,888887`;
+
+        // データのオブジェクト配列を作成
+        const yokaiList = [];
+        const yokaiMap = new Map(); // 検索結果を素早く引くためのMap
+        
+        const lines = csvData.trim().split('\n');
+        lines.forEach(line => {
+            if(line) {
+                const [name, kana, value] = line.split(',');
+                if(name && kana && value) {
+                    yokaiList.push({ name: name.trim(), kana: kana.trim(), value: value.trim() });
+                    yokaiMap.set(name.trim(), value.trim());
+                }
+            }
+        });
+
+        // DOM要素の取得
+        const inputEl = document.getElementById('yokaiInput');
+        const suggestListEl = document.getElementById('suggestList');
+        const searchBtn = document.getElementById('searchBtn');
+        const resultText = document.getElementById('resultText');
+        const resultBox = document.getElementById('resultBox');
+
+        let currentFocus = -1;
+        let currentSuggestions = [];
+
+        // 文字列の正規化（カタカナをひらがなに変換、英大文字を小文字に）
+        function normalizeString(str) {
+            return str.replace(/[\u30a1-\u30f6]/g, function(match) {
+                const chr = match.charCodeAt(0) - 0x60;
+                return String.fromCharCode(chr);
+            }).toLowerCase();
+        }
+
+        // サジェストリストの表示・更新
+        function updateSuggestList(query) {
+            suggestListEl.innerHTML = '';
+            currentFocus = -1;
+            
+            if (!query) {
+                suggestListEl.classList.add('hidden');
+                currentSuggestions = [];
+                return;
+            }
+
+            const normalizedQuery = normalizeString(query);
+            
+            // 名前かよみがなに部分一致するものをフィルタリング（最大15件まで表示）
+            currentSuggestions = yokaiList.filter(y => {
+                return normalizeString(y.name).includes(normalizedQuery) || 
+                       y.kana.includes(normalizedQuery);
+            }).slice(0, 15);
+
+            if (currentSuggestions.length > 0) {
+                suggestListEl.classList.remove('hidden');
+                
+                currentSuggestions.forEach((yokai, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'px-4 py-2 cursor-pointer text-gray-700 hover:bg-blue-50 transition-colors border-b last:border-b-0 border-gray-100 flex justify-between items-center';
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = yokai.name;
+                    nameSpan.className = 'font-medium';
+                    
+                    const kanaSpan = document.createElement('span');
+                    kanaSpan.textContent = yokai.kana;
+                    kanaSpan.className = 'text-xs text-gray-400 ml-2';
+                    
+                    li.appendChild(nameSpan);
+                    li.appendChild(kanaSpan);
+
+                    li.addEventListener('click', () => {
+                        inputEl.value = yokai.name;
+                        suggestListEl.classList.add('hidden');
+                        performSearch();
+                    });
+                    
+                    suggestListEl.appendChild(li);
+                });
+            } else {
+                suggestListEl.classList.add('hidden');
+            }
+        }
+
+        // キーボード操作のアクティブ状態を更新
+        function setActiveSuggestion(items) {
+            if (!items || items.length === 0) return;
+            // リセット
+            Array.from(items).forEach(item => item.classList.remove('bg-blue-100'));
+            
+            if (currentFocus >= items.length) currentFocus = 0;
+            if (currentFocus < 0) currentFocus = (items.length - 1);
+            
+            items[currentFocus].classList.add('bg-blue-100');
+            // スクロール追従
+            items[currentFocus].scrollIntoView({ block: 'nearest' });
+        }
+
+        // 入力時のイベント
+        inputEl.addEventListener('input', function() {
+            updateSuggestList(this.value);
+        });
+
+        // キーボード操作のイベント
+        inputEl.addEventListener('keydown', function(e) {
+            const items = suggestListEl.getElementsByTagName('li');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                currentFocus++;
+                setActiveSuggestion(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                currentFocus--;
+                setActiveSuggestion(items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (currentFocus > -1 && !suggestListEl.classList.contains('hidden')) {
+                    // サジェストが選択されている場合はそれを選ぶ
+                    if (items[currentFocus]) {
+                        items[currentFocus].click();
+                    }
+                } else {
+                    // 選択されていなければ検索を実行
+                    suggestListEl.classList.add('hidden');
+                    performSearch();
+                }
+            }
+        });
+
+        // 外部クリックでサジェストを閉じる
+        document.addEventListener('click', function (e) {
+            if (e.target !== inputEl && e.target !== suggestListEl) {
+                suggestListEl.classList.add('hidden');
+            }
+        });
+
+        // フォーカス時にリストを再表示
+        inputEl.addEventListener('focus', function() {
+            if (this.value) {
+                updateSuggestList(this.value);
+            }
+        });
+
+        function performSearch() {
+            const query = inputEl.value.trim();
+            
+            resultBox.classList.remove('bg-blue-50', 'border-blue-300', 'bg-red-50', 'border-red-300');
+            
+            if (query === "") {
+                resultText.textContent = "名前を入力してください";
+                resultText.className = "text-xl font-medium text-gray-500";
+                resultBox.classList.add('bg-gray-50', 'border-gray-300');
+                return;
+            }
+
+            if (yokaiMap.has(query)) {
+                const value = yokaiMap.get(query);
+                resultText.textContent = value;
+                resultText.className = "text-5xl font-extrabold text-blue-600 tracking-wider";
+                resultBox.classList.remove('bg-gray-50', 'border-gray-300');
+                resultBox.classList.add('bg-blue-50', 'border-blue-300');
+            } else {
+                resultText.textContent = "見つかりません";
+                resultText.className = "text-2xl font-bold text-red-500";
+                resultBox.classList.remove('bg-gray-50', 'border-gray-300');
+                resultBox.classList.add('bg-red-50', 'border-red-300');
+            }
+        }
+
+        searchBtn.addEventListener('click', () => {
+            suggestListEl.classList.add('hidden');
+            performSearch();
+        });
+
+    </script>
+</body>
+</html>
